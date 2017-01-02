@@ -31,7 +31,8 @@ public class Reversi extends JPanel implements MouseListener{
 	int[][] disks= new int[8][8]; // -1なら黒、1なら白、0ならどちらも置かれていない
 	boolean[][] placeability=new boolean[8][8];
 	boolean yourTurn=true; // trueならプレイヤーのターン
-	boolean color=true; // trueなら現在黒のターン
+	boolean pass=false;
+	int color=-1; // -1なら現在黒のターン
 
 	Image board;
 	Image black,white;
@@ -97,12 +98,36 @@ public class Reversi extends JPanel implements MouseListener{
 			if(y>7)
 				y=7;
 
-			if(placeability[x][y]){
-				place(x,y,color);
-				color=!color;
+			if(pass){
+				color*=-1;
 				invest();
-//				yourTurn=!yourTurn;
-				Screen.text.setText(x + ", "+ y);
+				if(pass){
+					judge();
+					pass=false;
+				}
+				else {
+					if (color == -1)
+						Screen.text.setText("Black's Turn");
+					else
+						Screen.text.setText("White's Turn");
+				}
+			}
+			else if(placeability[x][y]) {
+				place(x, y);
+				color *= -1;
+				pass = true;
+				invest();
+				if (pass) {
+					if (color == -1)
+						Screen.text.setText("Black can't place a disk.");
+					else
+						Screen.text.setText("White can't place a disk.");
+				} else {
+					if (color == -1)
+						Screen.text.setText("Black's Turn");
+					else
+						Screen.text.setText("White's Turn");
+				}
 				repaint();
 			}
 		}
@@ -111,63 +136,57 @@ public class Reversi extends JPanel implements MouseListener{
 	public void mouseEntered(MouseEvent e){}
 	public void mouseReleased(MouseEvent e){}
 
-	void place(int x,int y,boolean c){
-		if(color)
+	/** クリックされた座標(x,y)に石を置き、ひっくり返すメソッド */
+	void place(int x,int y){
+		/** 手番に応じて石を置く */
+		if(color==-1)
 			disks[x][y]=-1;
 		else
 			disks[x][y]=1;
 
-		flip(x-1,y-1,-1,-1,color);
-		flip(x-1,y,-1,0,color);
-		flip(x-1,y+1,-1,1,color);
-		flip(x,y-1,0,-1,color);
-		flip(x,y+1,0,1,color);
-		flip(x+1,y-1,1,-1,color);
-		flip(x+1,y,1,0,color);
-		flip(x+1,y+1,1,1,color);
+		/** 8方向に対してflipメソッドを呼び出し、ひっくり返す */
+		flip(x-1,y-1,-1,-1);
+		flip(x-1,y,-1,0);
+		flip(x-1,y+1,-1,1);
+		flip(x,y-1,0,-1);
+		flip(x,y+1,0,1);
+		flip(x+1,y-1,1,-1);
+		flip(x+1,y,1,0);
+		flip(x+1,y+1,1,1);
 	}
 
-	boolean flip(int x,int y,int dx,int dy,boolean c) {
+	/** 自分の石ではさんだ相手の石をひっくり返すメソッド
+	 *  x,yは座標、dx,dyは方向(dx=dy=-1なら左上方向についてひっくり返せるか調べている) */
+	boolean flip(int x,int y,int dx,int dy) {
+		/** (x,y)の石を見る。(x,y)が盤面の外ならfalse(ひっくり返せない)を返す */
 		if (x == -1 || y == -1 || x == 8 || y == 8)
 			return false;
-		if (color) {
-			switch (disks[x][y]) {
-				case -1:
-					return true;
-				case 0:
-					return false;
-				case 1:
-					if (flip(x + dx, y + dy, dx, dy, c)) {
-						disks[x][y] = -1;
-						return true;
-					} else
-						return false;
-			}
-		}
+
+		if(disks[x][y]==0)
+			return false;
 		else {
-			switch (disks[x][y]) {
-				case 1:
+			if (disks[x][y] == color)
+				return true;
+			else {
+				if (flip(x + dx, y + dy, dx, dy)) {
+					disks[x][y] = color;
 					return true;
-				case 0:
+				} else
 					return false;
-				case -1:
-					if (flip(x + dx, y + dy, dx, dy, c)) {
-						disks[x][y] = 1;
-						return true;
-					} else
-						return false;
 			}
 		}
-		return false;
 	}
 
 	void invest(){
 		for(int i=0;i<8;i++)
 			for(int j=0;j<8;j++){
 				if(disks[i][j]==0){
-					placeability[i][j] = fi(i-1,j-1,-1,-1,color)||fi(i-1,j,-1,0,color)
-					||fi(i-1,j+1,-1,1,color)||fi(i,j-1,0,-1,color)||fi(i,j+1,0,1,color)
-					||fi(i+1,j-1,1,-1,color)||fi(i+1,j,1,0,color)||fi(i+1,j+1,1,1,color);
+					placeability[i][j] = fi(i-1,j-1,-1,-1)||fi(i-1,j,-1,0)
+					||fi(i-1,j+1,-1,1)||fi(i,j-1,0,-1)||fi(i,j+1,0,1)
+					||fi(i+1,j-1,1,-1)||fi(i+1,j,1,0)||fi(i+1,j+1,1,1);
+
+					if(placeability[i][j])
+						pass=false;
 				}
 				else {
 					placeability[i][j] = false;
@@ -175,54 +194,53 @@ public class Reversi extends JPanel implements MouseListener{
 			}
 	}
 
-	boolean fi(int x,int y,int dx,int dy,boolean c){
+	boolean fi(int x,int y,int dx,int dy){
 		if (x == -1 || y == -1 || x == 8 || y == 8)
 			return false;
-		if(color) {
-			switch (disks[x][y]) {
-				case -1:
-				case 0:
-					return false;
-				case 1:
-					return i(x + dx, y + dy, dx, dy, c);
-			}
-		}
-		else{
-			switch (disks[x][y]) {
-				case 1:
-				case 0:
-					return false;
-				case -1:
-					return i(x + dx, y + dy, dx, dy, c);
-			}
-		}
-		return false;
+
+		if(color==disks[x][y]*-1)
+			return i(x + dx, y + dy, dx, dy);
+		else
+			return false;
 	}
 
-	boolean i(int x,int y,int dx,int dy,boolean c){
+	boolean i(int x,int y,int dx,int dy){
 		if (x == -1 || y == -1 || x == 8 || y == 8)
 			return false;
-		if(color) {
-			switch (disks[x][y]) {
-				case -1:
-					return true;
-				case 0:
-					return false;
-				case 1:
-					return i(x + dx, y + dy, dx, dy, c);
-			}
+
+		if(disks[x][y]==0)
+			return false;
+		else{
+			if(color==disks[x][y])
+				return true;
+			else
+				return i(x + dx, y + dy, dx, dy);
 		}
-		else {
-			switch (disks[x][y]) {
-				case 1:
-					return true;
-				case 0:
-					return false;
-				case -1:
-					return i(x + dx, y + dy, dx, dy, c);
-			}
+	}
+
+	void judge() {
+		int b = 0;
+		int w = 0;
+		for (int i = 0; i < 8; i++)
+			for (int j = 0; j < 8; j++)
+				switch (disks[i][j]) {
+					case -1:
+						b++;
+						break;
+					case 1:
+						w++;
+						break;
+				}
+
+		if (b > w) {
+			Screen.text.setText("Black:"+b+" White:"+w+" Black won!");
 		}
-		return false;
+		if(b==w){
+			Screen.text.setText("Black:"+b+" White:"+w+" Draw Game.");
+		}
+		if(b<w){
+			Screen.text.setText("Black:"+b+" White:"+w+" White won!");
+		}
 	}
 
 	public static void main(String[] args) {
